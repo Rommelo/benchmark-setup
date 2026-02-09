@@ -1,0 +1,4 @@
+command,mean,stddev,median,user,system,min,max
+sudo ctr run --rm --runtime=io.containerd.runc.v2 docker.io/rommeloo/n-body-linux:v1 bench-linux /nbody  > /dev/null,3.2935133484199994,1.0538637813089897,2.7104784346199997,0.002509928,0.00842548,2.3365244766199997,4.51365375562
+sudo ctr run --rm --runtime=io.containerd.wasmtime.v1 docker.io/rommeloo/n-body-runwasi:v1 bench-wasm /nbody.wasm  > /dev/null,3.4729545892199996,0.821189780099405,3.01648851462,0.00566426,0.0061121840000000005,2.74928553662,4.3988277586199995
+sudo ctr run --rm --runtime=io.containerd.spin.v2 docker.io/rommeloo/n-body-spin:v1 bench-spin /nbody.wasm  > /dev/null,4.91273561502,1.6731269623295302,4.58928861562,0.004483860000000001,0.007225184,3.05799923962,6.93487608862

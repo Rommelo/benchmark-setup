@@ -1,0 +1,4 @@
+command,mean,stddev,median,user,system,min,max
+sudo ctr run --rm --runtime=io.containerd.runc.v2 docker.io/rommeloo/mandelbrot-linux:v1 bench-linux /mandelbrot  > /dev/null,3.8756300814000006,0.6959336509224814,3.7607403660000003,0.0034328960000000004,0.008061059999999998,2.850547577,4.6163477649999995
+sudo ctr run --rm --runtime=io.containerd.wasmtime.v1 docker.io/rommeloo/mandelbrot-runwasi:v1 bench-wasm /mandelbrot.wasm  > /dev/null,4.200803430399999,0.32326032920759407,4.061291936,0.007198819999999999,0.004367196,3.903396103,4.729955142
+sudo ctr run --rm --runtime=io.containerd.spin.v2 docker.io/rommeloo/mandelbrot-spin:v1 bench-spin /mandelbrot.wasm  > /dev/null,5.190340873999999,0.8088354545620966,5.368645034,0.003281219999999999,0.00850626,3.870800295,6.086519503
