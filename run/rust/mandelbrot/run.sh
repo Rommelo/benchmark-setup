@@ -50,12 +50,14 @@ echo " - Cold Start Strategy: drop_caches before each run"
 
 hyperfine \
   --warmup 3 \
-  --runs 5 \
+  --runs 50 \
   --prepare "$PREPARE_CMD" \
   --export-csv "$OUTPUT_CSV" \
   --export-markdown "$OUTPUT_MD" \
   "sudo ctr run --rm --runtime=$RUNTIME_LINUX $IMG_LINUX bench-linux /mandelbrot  > /dev/null" \
-  "sudo ctr run --rm --runtime=$RUNTIME_WASM $IMG_WASM bench-wasm /mandelbrot.wasm  > /dev/null" \
+  "sudo ctr run --rm --runc-binary crun --runtime=$RUNTIME_LINUX $IMG_LINUX bench-linux-crun /mandelbrot  > /dev/null" \
+  "sudo ctr run --rm --runc-binary crun --label module.wasm.image/variant=compat-smart --runtime=$RUNTIME_LINUX $IMG_WASM bench-wasm-crun /mandelbrot.wasm  > /dev/null" \
+  "sudo ctr run --rm --runtime=$RUNTIME_WASM $IMG_WASM bench-wasm-runwasi /mandelbrot.wasm  > /dev/null" \
   "sudo ctr run --rm --runtime=$RUNTIME_SPIN $IMG_SPIN bench-spin /mandelbrot.wasm  > /dev/null"
 
 # 4. Ergebnisse anzeigen

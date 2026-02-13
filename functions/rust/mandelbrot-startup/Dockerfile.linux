@@ -1,10 +1,11 @@
-FROM docker.io/rust:1.93-bullseye AS builder
-RUN rustup target add x86_64-unknown-linux-musl
-RUN mkdir /build
-COPY . /build/
-WORKDIR /build
-RUN cargo build --release --target x86_64-unknown-linux-musl
+FROM docker.io/rust:1.93-bookworm AS builder
 
-FROM docker.io/alpine:3.23.3
-COPY --from=builder /build/target/x86_64-unknown-linux-musl/release/mandelbrot /
+WORKDIR /build
+COPY . /build/
+
+RUN cargo build --release
+FROM gcr.io/distroless/cc-debian12
+
+COPY --from=builder /build/target/release/mandelbrot /
+
 ENTRYPOINT ["/mandelbrot"]

@@ -24,13 +24,15 @@ run_batch() {
     local image=$2
     local name_prefix=$3
     local cmd_arg=$4 
+    local extra_flags=$5
     
     # Wir lesen CONCURRENCY aus der Umgebung (gesetzt durch Hyperfine)
     local count=${CONCURRENCY:-1}
 
     for i in $(seq 1 $count); do
         # Startet N Container im Hintergrund
-        sudo ctr run --rm --runtime=$runtime $image "$name_prefix-$i" $cmd_arg > /dev/null 2>&1 & 
+        # $extra_flags wird hier unquoted eingefügt, damit Flags getrennt erkannt werden
+        sudo ctr run --rm $extra_flags --runtime=$runtime $image "$name_prefix-$i" $cmd_arg > /dev/null 2>&1 & 
     done
 
     # Warten auf alle Child-Prozesse dieses Batches
@@ -56,7 +58,7 @@ prepare_environment() {
     sudo ctr containers ls -q | grep "bench-" | xargs -r sudo ctr containers rm > /dev/null 2>&1
     
     # Cache Drop (optional, für Scaling Tests aber oft gut)
-    #sync; echo 3 | sudo tee /proc/sys/vm/drop_caches > /dev/null
+    sync; echo 3 | sudo tee /proc/sys/vm/drop_caches > /dev/null
 }
 
 echo "Starting Scaling Benchmark..."
@@ -64,12 +66,15 @@ echo "Output: $OUTPUT_CSV"
 
 # Cleanup Command für Hyperfine
 PREPARE_CMD="sudo ctr tasks ls -q | grep bench | xargs -r sudo ctr tasks kill >/dev/null 2>&1; \
-             sudo ctr containers ls -q | grep bench | xargs -r sudo ctr containers rm >/dev/null 2>&1;" #\
-             #sync; echo 3 | sudo tee /proc/sys/vm/drop_caches > /dev/null"
+             sudo ctr containers ls -q | grep bench | xargs -r sudo ctr containers rm >/dev/null 2>&1;"
 
 # Wir rufen jetzt ./scaling-run.sh --worker auf, statt bash -c 'run_batch'
 # Das Skript muss ausführbar sein (chmod +x scaling-run.sh)
 SCRIPT_PATH="./$(basename "$0")"
+
+# --- 4. Benchmark Ausführung ---
+# WICHTIG: Bei Argumenten ohne extra Flags müssen wir leere Anführungszeichen "" übergeben,
+# damit die Position der Argumente ($1 bis $5) stimmt.
 
 hyperfine \
   --warmup 2 \
@@ -77,10 +82,12 @@ hyperfine \
   --prepare "$PREPARE_CMD" \
   --export-csv "$OUTPUT_CSV" \
   --export-markdown "$OUTPUT_MD" \
-  --parameter-list threads 1,10,20 \
-  "CONCURRENCY={threads} $SCRIPT_PATH --worker $RUNTIME_LINUX $IMG_LINUX bench-linux /mandelbrot" \
-  "CONCURRENCY={threads} $SCRIPT_PATH --worker $RUNTIME_WASM $IMG_WASM bench-wasm /mandelbrot.wasm" \
-  "CONCURRENCY={threads} $SCRIPT_PATH --worker $RUNTIME_SPIN $IMG_SPIN bench-spin /mandelbrot.wasm"
+  --parameter-list threads 1,20,50 \
+  "CONCURRENCY={threads} $SCRIPT_PATH --worker $RUNTIME_LINUX $IMG_LINUX bench-linux-runc /mandelbrot \"\"" \
+  "CONCURRENCY={threads} $SCRIPT_PATH --worker $RUNTIME_LINUX $IMG_LINUX bench-linux-crun /mandelbrot \"--runc-binary crun\"" \
+  "CONCURRENCY={threads} $SCRIPT_PATH --worker $RUNTIME_LINUX $IMG_WASM bench-wasm-crun /mandelbrot.wasm \"--runc-binary crun --label module.wasm.image/variant=compat-smart\"" \
+  "CONCURRENCY={threads} $SCRIPT_PATH --worker $RUNTIME_WASM $IMG_WASM bench-wasm-runwasi /mandelbrot.wasm \"\"" \
+  "CONCURRENCY={threads} $SCRIPT_PATH --worker $RUNTIME_SPIN $IMG_SPIN bench-spin /mandelbrot.wasm \"\""
 
 echo ""
 echo "Benchmark finished."

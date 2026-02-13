@@ -50,12 +50,14 @@ echo " - Cold Start Strategy: drop_caches before each run"
 
 hyperfine \
   --warmup 3 \
-  --runs 5 \
+  --runs 50 \
   --prepare "$PREPARE_CMD" \
   --export-csv "$OUTPUT_CSV" \
   --export-markdown "$OUTPUT_MD" \
-  "sudo ctr run --rm --runtime=$RUNTIME_LINUX $IMG_LINUX bench-linux /nbody  > /dev/null" \
-  "sudo ctr run --rm --runtime=$RUNTIME_WASM $IMG_WASM bench-wasm /nbody.wasm  > /dev/null" \
+  "sudo ctr run --rm --runtime=$RUNTIME_LINUX $IMG_LINUX bench-linux-runc /nbody  > /dev/null" \
+  "sudo ctr run --rm --runc-binary crun --runtime=$RUNTIME_LINUX $IMG_LINUX bench-linux-crun /nbody  > /dev/null" \
+  "sudo ctr run --rm --runc-binary crun --label module.wasm.image/variant=compat-smart --runtime=$RUNTIME_LINUX $IMG_WASM bench-wasm-crun /nbody.wasm  > /dev/null" \
+  "sudo ctr run --rm --runtime=$RUNTIME_WASM $IMG_WASM bench-wasm-runwasi /nbody.wasm  > /dev/null" \
   "sudo ctr run --rm --runtime=$RUNTIME_SPIN $IMG_SPIN bench-spin /nbody.wasm  > /dev/null"
 
 # 4. Ergebnisse anzeigen
