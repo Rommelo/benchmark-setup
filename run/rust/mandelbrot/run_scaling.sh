@@ -1,7 +1,6 @@
 #!/bin/bash
 
 # --- 1. Konfiguration ---
-# HINWEIS: CONCURRENCY wird später von Hyperfine überschrieben
 : ${CONCURRENCY:=1} 
 RUNS=10
 
@@ -26,12 +25,9 @@ run_batch() {
     local cmd_arg=$4 
     local extra_flags=$5
     
-    # Wir lesen CONCURRENCY aus der Umgebung (gesetzt durch Hyperfine)
     local count=${CONCURRENCY:-1}
 
     for i in $(seq 1 $count); do
-        # Startet N Container im Hintergrund
-        # $extra_flags wird hier unquoted eingefügt, damit Flags getrennt erkannt werden
         sudo ctr run --rm $extra_flags --runtime=$runtime $image "$name_prefix-$i" $cmd_arg > /dev/null 2>&1 & 
     done
 
@@ -41,23 +37,17 @@ run_batch() {
 
 # --- 3. DISPATCHER: Prüfen, ob wir im Worker-Modus sind ---
 if [ "$1" == "--worker" ]; then
-    # Wenn das erste Argument "--worker" ist, führen wir die Funktion aus und beenden uns.
     shift # "--worker" entfernen
     run_batch "$@"
     exit 0
 fi
 
-# =========================================================
-# Alles hierunter wird nur vom "Master"-Aufruf ausgeführt
-# =========================================================
 
 prepare_environment() {
     echo "[Setup] Cleaning up..."
-    # Aufräumen (ignoriert Fehler falls nichts da ist)
     sudo ctr tasks ls -q | grep "bench-" | xargs -r sudo ctr tasks kill -s 9 > /dev/null 2>&1
     sudo ctr containers ls -q | grep "bench-" | xargs -r sudo ctr containers rm > /dev/null 2>&1
     
-    # Cache Drop (optional, für Scaling Tests aber oft gut)
     sync; echo 3 | sudo tee /proc/sys/vm/drop_caches > /dev/null
 }
 
@@ -68,13 +58,10 @@ echo "Output: $OUTPUT_CSV"
 PREPARE_CMD="sudo ctr tasks ls -q | grep bench | xargs -r sudo ctr tasks kill >/dev/null 2>&1; \
              sudo ctr containers ls -q | grep bench | xargs -r sudo ctr containers rm >/dev/null 2>&1;"
 
-# Wir rufen jetzt ./scaling-run.sh --worker auf, statt bash -c 'run_batch'
 # Das Skript muss ausführbar sein (chmod +x scaling-run.sh)
 SCRIPT_PATH="./$(basename "$0")"
 
 # --- 4. Benchmark Ausführung ---
-# WICHTIG: Bei Argumenten ohne extra Flags müssen wir leere Anführungszeichen "" übergeben,
-# damit die Position der Argumente ($1 bis $5) stimmt.
 
 hyperfine \
   --warmup 2 \
